@@ -1,0 +1,55 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "ghdb"
+
+COMMANDS = %w[init new build push pull info cleanup].freeze
+
+def usage
+  warn <<~USAGE
+    Usage:
+      ghdb init
+      ghdb new      --repo OWNER/NAME [--branch BRANCH]
+      ghdb build
+      ghdb push     [--replica REPLICA_URL]
+      ghdb pull     [--replica REPLICA_URL]
+      ghdb info     [--remote]
+      ghdb cleanup  --local|--remote|--all [--force]
+  USAGE
+  exit 1
+end
+
+def parse_args(argv)
+  opts = {}
+  i = 0
+  while i < argv.length
+    case argv[i]
+    when "--repo"    then opts[:repo]    = argv[i + 1]; i += 2
+    when "--db"      then opts[:db]      = argv[i + 1]; i += 2
+    when "--branch"  then opts[:branch]  = argv[i + 1]; i += 2
+    when "--replica" then opts[:replica] = argv[i + 1]; i += 2
+    when "--dir"     then opts[:dir]     = argv[i + 1]; i += 2
+    when "--remote"  then opts[:remote]  = true; i += 1
+    when "--local"   then opts[:local]   = true; i += 1
+    when "--all"     then opts[:all]     = true; i += 1
+    when "--force"   then opts[:force]   = true; i += 1
+    else i += 1
+    end
+  end
+  opts
+end
+
+command = ARGV.shift
+usage unless COMMANDS.include?(command)
+
+opts = parse_args(ARGV)
+
+case command
+when "init"  then Ghdb::Commands::Init.run
+when "new"   then Ghdb::Commands::New.run(opts)
+when "build" then Ghdb::Commands::Build.run(opts)
+when "push"  then Ghdb::Commands::Push.run(opts)
+when "pull"    then Ghdb::Commands::Pull.run(opts)
+when "info"    then Ghdb::Commands::Info.run(opts)
+when "cleanup" then Ghdb::Commands::Cleanup.run(opts)
+end

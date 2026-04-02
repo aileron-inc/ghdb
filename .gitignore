@@ -1,0 +1,12 @@
+.env
+.envrc
+*.gem
+.ghdb/ghdb.sqlite
+/.bundle/
+/.yardoc
+/_yardoc/
+/coverage/
+/doc/
+/pkg/
+/spec/reports/
+/tmp/

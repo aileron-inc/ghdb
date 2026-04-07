@@ -16,7 +16,7 @@ module Ghdb
           exit 1
         end
 
-        Ghdb.connect(database: Ghdb::Config.db_path || "#{Ghdb::Config::GHDB_DIR}/ghdb.sqlite")
+        Ghdb.connect(database: Ghdb::Config.db_path)
 
         repo = Ghdb::Repository.find_by(owner: owner, name: name)
         unless repo

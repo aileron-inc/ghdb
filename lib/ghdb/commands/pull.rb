@@ -14,7 +14,7 @@ module Ghdb
           exit 1
         end
 
-        db_path = Ghdb::Config.db_path
+        db_path = Ghdb::Config.pull_db_path
 
         unless db_path
           warn 'Error: GHDB_DATABASE_PATH is not set and config/database.yml has no ghdb entry.'

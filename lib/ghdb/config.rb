@@ -8,7 +8,15 @@ module Ghdb
     GHDB_DIR    = '.ghdb'
     CONFIG_PATH = "#{GHDB_DIR}/config.yml"
 
+    # CLI 用: GHDB_DATABASE_PATH → database.yml → .ghdb/ghdb.sqlite
     def self.db_path
+      ENV['GHDB_DATABASE_PATH'] ||
+        db_path_from_database_yml ||
+        "#{GHDB_DIR}/ghdb.sqlite"
+    end
+
+    # pull 用: GHDB_DATABASE_PATH → database.yml → nil（エラー）
+    def self.pull_db_path
       ENV['GHDB_DATABASE_PATH'] || db_path_from_database_yml
     end
 

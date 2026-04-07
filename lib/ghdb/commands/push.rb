@@ -6,14 +6,7 @@ module Ghdb
       GHDB_DIR = '.ghdb'
       DB_PATH  = "#{GHDB_DIR}/ghdb.sqlite"
 
-      def self.run(opts)
-        replica = opts[:replica] || replica_from_env
-
-        unless replica
-          warn 'Error: --replica is required or set GHDB_BUCKET (and optionally GHDB_ENDPOINT)'
-          exit 1
-        end
-
+      def self.run(_opts)
         unless File.exist?(DB_PATH)
           warn "Error: #{DB_PATH} not found. Run `ghdb build` first."
           exit 1
@@ -24,19 +17,34 @@ module Ghdb
           exit 1
         end
 
-        env = {
-          'AWS_ACCESS_KEY_ID' => ENV['GHDB_ACCESS_KEY_ID'],
-          'AWS_SECRET_ACCESS_KEY' => ENV['GHDB_SECRET_ACCESS_KEY']
-        }
+        unless Env.valid?
+          warn "Error: missing environment variables: #{Env.missing_vars.join(', ')}"
+          exit 1
+        end
 
-        exec env, 'litestream', 'replicate', '-exec', 'echo done', DB_PATH, replica
+        config_path = Env.write_litestream_config(DB_PATH)
+        push!(config_path)
+      ensure
+        File.delete(config_path) if config_path && File.exist?(config_path)
       end
 
-      def self.replica_from_env
-        return nil unless ENV['GHDB_BUCKET'] && !ENV['GHDB_BUCKET'].empty?
+      def self.push!(config_path)
+        # litestream を起動してログを監視し、compaction complete で終了する
+        rd, wr = IO.pipe
 
-        endpoint = ENV['GHDB_ENDPOINT'] || 'fly.storage.tigris.dev'
-        "s3://#{ENV['GHDB_BUCKET']}?endpoint=#{endpoint}&region=auto"
+        pid = spawn('litestream', 'replicate', '-config', config_path, err: wr, out: wr)
+        wr.close
+
+        rd.each_line do |line|
+          $stdout.print line
+          $stdout.flush
+          if line.include?('compaction complete')
+            Process.kill('TERM', pid)
+            break
+          end
+        end
+
+        Process.wait(pid)
       end
     end
   end

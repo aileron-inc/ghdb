@@ -73,9 +73,7 @@ module Ghdb
       end
 
       def self.all_files(dir)
-        Dir.glob("#{dir}/**/*", File::FNM_DOTMATCH)
-           .reject { |f| File.directory?(f) }
-           .map { |f| f.delete_prefix("#{dir}/") }
+        `git -C #{dir} ls-files 2>/dev/null`.split("\n")
       end
 
       def self.parse_frontmatter(content)

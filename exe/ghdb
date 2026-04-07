@@ -3,7 +3,7 @@
 
 require "ghdb"
 
-COMMANDS = %w[init new build push pull info cleanup].freeze
+COMMANDS = %w[init new build push pull check info cleanup].freeze
 
 def usage
   warn <<~USAGE
@@ -13,6 +13,7 @@ def usage
       ghdb build
       ghdb push     [--replica REPLICA_URL]
       ghdb pull     [--replica REPLICA_URL]
+      ghdb check
       ghdb info     [--remote]
       ghdb cleanup  --local|--remote|--all [--force]
   USAGE
@@ -50,6 +51,7 @@ when "new"   then Ghdb::Commands::New.run(opts)
 when "build" then Ghdb::Commands::Build.run(opts)
 when "push"  then Ghdb::Commands::Push.run(opts)
 when "pull"    then Ghdb::Commands::Pull.run(opts)
+when "check"   then Ghdb::Commands::Check.run
 when "info"    then Ghdb::Commands::Info.run(opts)
 when "cleanup" then Ghdb::Commands::Cleanup.run(opts)
 end

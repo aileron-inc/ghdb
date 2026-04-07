@@ -3,25 +3,20 @@
 module Ghdb
   module Commands
     module Init
-      REQUIRED_ENV = %w[GHDB_ACCESS_KEY_ID GHDB_SECRET_ACCESS_KEY GHDB_BUCKET].freeze
-
       def self.run
         check_litestream!
         check_env!
 
         FileUtils.mkdir_p(Ghdb::Config::GHDB_DIR)
 
-        db_path  = Ghdb::Config.db_path
-        endpoint = ENV['GHDB_ENDPOINT'] || 'fly.storage.tigris.dev'
-        replica  = "s3://#{ENV['GHDB_BUCKET']}?endpoint=#{endpoint}&region=auto"
-        env      = litestream_env
+        db_path = Ghdb::Config.db_path
 
-        if replica_exists?(db_path, replica, env)
-          puts "ghdb: already exists (#{ENV['GHDB_BUCKET']})"
+        if replica_exists?(db_path)
+          puts "ghdb: already exists (#{Env.bucket})"
         else
           Ghdb.connect(database: db_path)
-          push!(db_path, replica, env)
-          puts "ghdb: initialized (#{ENV['GHDB_BUCKET']})"
+          push!(db_path)
+          puts "ghdb: initialized (#{Env.bucket})"
         end
       end
 
@@ -33,27 +28,25 @@ module Ghdb
       end
 
       def self.check_env!
-        missing = REQUIRED_ENV.reject { |k| ENV[k] && !ENV[k].empty? }
-        return if missing.empty?
+        return if Env.valid?
 
-        warn "Error: missing environment variables: #{missing.join(', ')}"
+        warn "Error: missing environment variables: #{Env.missing_vars.join(', ')}"
         exit 1
       end
 
-      def self.litestream_env
-        {
-          'AWS_ACCESS_KEY_ID' => ENV['GHDB_ACCESS_KEY_ID'],
-          'AWS_SECRET_ACCESS_KEY' => ENV['GHDB_SECRET_ACCESS_KEY']
-        }
-      end
-
-      def self.replica_exists?(db_path, replica, env)
-        system(env, 'litestream', 'restore', '-if-replica-exists', '-o', db_path, replica,
+      def self.replica_exists?(db_path)
+        config_path = Env.write_litestream_config(db_path)
+        system('litestream', 'restore', '-if-replica-exists', '-config', config_path, '-o', db_path, db_path,
                out: File::NULL, err: File::NULL)
+      ensure
+        File.delete(config_path) if config_path && File.exist?(config_path)
       end
 
-      def self.push!(db_path, replica, env)
-        system(env, 'litestream', 'replicate', '-exec', 'echo done', db_path, replica)
+      def self.push!(db_path)
+        config_path = Env.write_litestream_config(db_path)
+        system('litestream', 'replicate', '-config', config_path, '-exec', 'echo done')
+      ensure
+        File.delete(config_path) if config_path && File.exist?(config_path)
       end
     end
   end

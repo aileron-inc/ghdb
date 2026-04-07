@@ -12,9 +12,7 @@ module Ghdb
       end
 
       def self.run_local
-        db_path  = Ghdb::Config.db_path
-        bucket   = ENV['GHDB_BUCKET']
-        endpoint = ENV['GHDB_ENDPOINT'] || 'fly.storage.tigris.dev'
+        db_path = Ghdb::Config.db_path
 
         unless File.exist?(db_path)
           warn "Error: #{db_path} not found. Run `ghdb init` and `ghdb build` first."
@@ -22,16 +20,14 @@ module Ghdb
         end
 
         Ghdb.connect(database: db_path)
-        print_info(db_path, bucket, endpoint)
+        print_info(db_path)
       end
 
       def self.run_remote
-        bucket   = ENV['GHDB_BUCKET']
-        endpoint = ENV['GHDB_ENDPOINT'] || 'fly.storage.tigris.dev'
-        replica  = "s3://#{bucket}?endpoint=#{endpoint}&region=auto"
+        replica = Env.replica_url
 
-        unless bucket && !bucket.empty?
-          warn 'Error: GHDB_BUCKET is not set'
+        unless replica
+          warn 'Error: bucket not set (GHDB_BUCKET, TIGRIS_BUCKET, or BUCKET_NAME)'
           exit 1
         end
 
@@ -41,12 +37,8 @@ module Ghdb
         end
 
         tmp_path = "/tmp/ghdb-info-#{Process.pid}.sqlite"
-        env      = {
-          'AWS_ACCESS_KEY_ID' => ENV['GHDB_ACCESS_KEY_ID'],
-          'AWS_SECRET_ACCESS_KEY' => ENV['GHDB_SECRET_ACCESS_KEY']
-        }
 
-        unless system(env, 'litestream', 'restore', '-if-replica-exists', '-o', tmp_path, replica)
+        unless system(Env.credentials_env, 'litestream', 'restore', '-if-replica-exists', '-o', tmp_path, replica)
           warn "Error: failed to restore from #{replica}"
           exit 1
         end
@@ -58,18 +50,18 @@ module Ghdb
 
         Ghdb.connect(database: tmp_path)
         puts '(remote)'
-        print_info(tmp_path, bucket, endpoint)
+        print_info(tmp_path)
       ensure
         File.delete(tmp_path) if tmp_path && File.exist?(tmp_path)
       end
 
-      def self.print_info(db_path, bucket, endpoint)
+      def self.print_info(db_path)
         puts "db:      #{db_path} (#{File.size(db_path)} bytes)"
-        if bucket
-          puts "replica: s3://#{bucket}?endpoint=#{endpoint}&region=auto"
-          puts "console: https://console.storage.dev/buckets/#{bucket}/objects"
+        if Env.bucket
+          puts "replica: #{Env.replica_url}"
+          puts "console: https://console.storage.dev/buckets/#{Env.bucket}/objects"
         else
-          puts 'replica: (GHDB_BUCKET not set)'
+          puts 'replica: (bucket not set)'
         end
         puts
 

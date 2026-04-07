@@ -22,7 +22,7 @@ module Ghdb
 
         targets = []
         targets << 'local (.ghdb/)' if local
-        targets << "remote (s3://#{ENV['GHDB_BUCKET'] || '?'})" if remote
+        targets << "remote (s3://#{Env.bucket || '?'})" if remote
 
         unless force
           print "This will delete: #{targets.join(', ')}. Are you sure? [y/N] "
@@ -48,12 +48,10 @@ module Ghdb
       end
 
       def self.cleanup_remote!
-        bucket   = ENV['GHDB_BUCKET']
-        endpoint = ENV['GHDB_ENDPOINT'] || 'fly.storage.tigris.dev'
-        replica  = "s3://#{bucket}?endpoint=#{endpoint}&region=auto"
+        replica = Env.replica_url
 
-        unless bucket && !bucket.empty?
-          warn 'Error: GHDB_BUCKET is not set'
+        unless replica
+          warn 'Error: bucket not set (GHDB_BUCKET, TIGRIS_BUCKET, or BUCKET_NAME)'
           exit 1
         end
 
@@ -62,12 +60,7 @@ module Ghdb
           exit 1
         end
 
-        env = {
-          'AWS_ACCESS_KEY_ID' => ENV['GHDB_ACCESS_KEY_ID'],
-          'AWS_SECRET_ACCESS_KEY' => ENV['GHDB_SECRET_ACCESS_KEY']
-        }
-
-        if system(env, 'litestream', 'reset', replica, out: File::NULL, err: File::NULL)
+        if system(Env.credentials_env, 'litestream', 'reset', replica, out: File::NULL, err: File::NULL)
           puts "ghdb cleanup: deleted #{replica}"
         else
           warn "ghdb cleanup: failed to delete #{replica}"
